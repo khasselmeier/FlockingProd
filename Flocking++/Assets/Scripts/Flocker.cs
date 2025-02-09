@@ -7,6 +7,8 @@ public class Flocker : Kinematic
     public bool enableObstacleAvoidance = false;
     public GameObject cohesionTarget;
 
+    private float initialY;
+
     BlendedSteering baseSteering;
     PrioritySteering advancedSteering;
     Kinematic[] nearbyBirds;
@@ -14,8 +16,9 @@ public class Flocker : Kinematic
     void Start()
     {
         enableObstacleAvoidance = true;
+        initialY = transform.position.y;
 
-        // Separation behavior
+        //separation behavior
         Separation separationBehavior = new Separation();
         separationBehavior.character = this;
 
@@ -29,46 +32,46 @@ public class Flocker : Kinematic
         }
         separationBehavior.targets = nearbyBirds;
 
-        // Cohesion behavior
+        //cohesion behavior
         Arrive cohesionBehavior = new Arrive();
         cohesionBehavior.character = this;
         cohesionBehavior.target = cohesionTarget;
 
-        // Alignment behavior (Look in the flock's direction)
+        //alignment behavior (look in the flock's direction)
         LookWhereGoing rotationBehavior = new LookWhereGoing();
         rotationBehavior.character = this;
 
-        // Base flocking behaviors
+        //base flocking behaviors
         baseSteering = new BlendedSteering();
         baseSteering.behaviorWeights = new SteeringBehaviorWeight[3];
         baseSteering.behaviorWeights[0] = new SteeringBehaviorWeight { behavior = separationBehavior, weightFactor = 1f };
         baseSteering.behaviorWeights[1] = new SteeringBehaviorWeight { behavior = cohesionBehavior, weightFactor = 1f };
         baseSteering.behaviorWeights[2] = new SteeringBehaviorWeight { behavior = rotationBehavior, weightFactor = 1f };
 
-        // Obstacle avoidance behavior
+        //obstacle avoidance behavior
         ObstacleAvoidance obstacleAvoidance = new ObstacleAvoidance();
         obstacleAvoidance.character = this;
-        obstacleAvoidance.avoidDistance = 5f;
-        obstacleAvoidance.lookAhead = 3f;
+        obstacleAvoidance.avoidDistance = 3f;
+        obstacleAvoidance.lookAhead = 1.5f;
         obstacleAvoidance.flee = true;
 
-        // High-priority obstacle avoidance
+        //high-priority obstacle avoidance
         BlendedSteering highPrioritySteering = new BlendedSteering();
         highPrioritySteering.behaviorWeights = new SteeringBehaviorWeight[1];
         highPrioritySteering.behaviorWeights[0] = new SteeringBehaviorWeight { behavior = obstacleAvoidance, weightFactor = 1f };
 
-        // Priority-based steering
+        //priority-based steering
         advancedSteering = new PrioritySteering();
         advancedSteering.groups = new BlendedSteering[2];
-        advancedSteering.groups[0] = highPrioritySteering; // Obstacle avoidance has higher priority
-        advancedSteering.groups[1] = baseSteering; // Regular flocking behavior
+        advancedSteering.groups[0] = highPrioritySteering; // obstacle avoidance has higher priority
+        advancedSteering.groups[1] = baseSteering; // regular flocking behavior
     }
 
     protected override void Update()
     {
         steeringUpdate = new SteeringOutput();
 
-        //choose steering approach based on whether obstacle avoidance is enabled
+        // Choose steering approach based on whether obstacle avoidance is enabled
         if (!enableObstacleAvoidance)
         {
             steeringUpdate = baseSteering.ComputeSteering();
@@ -77,6 +80,9 @@ public class Flocker : Kinematic
         {
             steeringUpdate = advancedSteering.getSteering();
         }
+
+        // **Keep the bird at the initial Y height**
+        transform.position = new Vector3(transform.position.x, initialY, transform.position.z);
 
         base.Update();
     }
