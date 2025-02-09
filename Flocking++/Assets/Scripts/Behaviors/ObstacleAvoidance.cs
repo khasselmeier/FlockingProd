@@ -1,84 +1,47 @@
 using UnityEngine;
-using static UnityEngine.GraphicsBuffer;
 
-public class CollisionAvoidance : SteeringBehavior
+public class ObstacleAvoidance : SteeringBehavior
 {
     public Kinematic character;
-    public float maxAcceleration = 10f;
-    public Kinematic[] targets;
-    public float radius = 10f;
-    public Kinematic target;
+    public float avoidDistance = 10f;
+    public float lookAhead = 6f;
+    public float maxAcceleration = 5f;
+
+    public bool flee = false;  // Determines whether the object moves away from detected obstacles
 
     public override SteeringOutput getSteering()
     {
-        float shortestTime = float.PositiveInfinity;
-        Kinematic firstTarget = null;
-        float firstMinSeparation = float.PositiveInfinity;
-        float firstDistance = float.PositiveInfinity;
-        Vector3 firstRelativePos = Vector3.positiveInfinity;
-        Vector3 firstRelativeVel = Vector3.zero;
-
         SteeringOutput result = new SteeringOutput();
 
-        // Check for obstacles
-        foreach (Kinematic obstacle in targets)
+        Vector3 velocityDirection = character.linearVelocity.normalized;
+        RaycastHit hit;
+
+        int obstacleLayerMask = LayerMask.GetMask("obstacles"); // Avoid detecting the floor
+        Debug.DrawRay(character.transform.position, character.linearVelocity.normalized * lookAhead, Color.red);
+
+        // Cast a ray in the direction of movement to detect obstacles
+        if (Physics.Raycast(character.transform.position, velocityDirection, out hit, lookAhead))
         {
-            Vector3 relativePos = obstacle.transform.position - character.transform.position;
-            Vector3 relativeVel = character.linearVelocity - obstacle.linearVelocity;
+            Vector3 avoidanceForce;
 
-            float relativeSpeed = relativeVel.magnitude;
-            if (relativeSpeed == 0) continue;
-
-            float timeToCollision = -Vector3.Dot(relativePos, relativeVel) / (relativeSpeed * relativeSpeed);
-            float distance = relativePos.magnitude;
-            float minSeparation = distance - relativeSpeed * timeToCollision;
-
-            if (minSeparation > 2 * radius || timeToCollision < 0)
+            if (flee)
             {
-                continue;
-            }
-
-            if (timeToCollision < shortestTime)
-            {
-                shortestTime = timeToCollision;
-                firstTarget = obstacle;
-                firstMinSeparation = minSeparation;
-                firstDistance = distance;
-                firstRelativePos = relativePos;
-                firstRelativeVel = relativeVel;
-            }
-        }
-
-        // Calc the avoidance force if there is an obstacle
-        Vector3 avoidanceForce = Vector3.zero;
-
-        if (firstTarget != null)
-        {
-            Vector3 avoidanceDirection;
-            if (firstMinSeparation <= 0 || firstDistance < 2 * radius)
-            {
-                avoidanceDirection = character.transform.position - firstTarget.transform.position;
+                // Move directly away from the obstacle
+                avoidanceForce = (character.transform.position - hit.point).normalized * maxAcceleration;
             }
             else
             {
-                avoidanceDirection = firstRelativePos + firstRelativeVel * shortestTime;
+                // Move to the side to avoid the obstacle
+                avoidanceForce = Vector3.Cross(velocityDirection, Vector3.up).normalized * maxAcceleration;
             }
 
-            avoidanceDirection.y = 0;
-            avoidanceForce = avoidanceDirection.normalized * maxAcceleration;
+            result.linear = avoidanceForce;
+            result.angular = 0;
+
+            return result;
         }
 
-        // Move toward the target
-        Vector3 targetDirection = Vector3.zero;
-        if (target != null)
-        {
-            targetDirection = (target.transform.position - character.transform.position).normalized * maxAcceleration;
-        }
+        return null; // No obstacle detected
 
-        result.linear = targetDirection + avoidanceForce;
-        result.linear = result.linear.normalized * maxAcceleration;
-        result.angular = 0;
-
-        return result;
     }
 }

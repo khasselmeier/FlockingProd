@@ -1,5 +1,3 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class ObstacleAvoider : Kinematic
@@ -10,14 +8,18 @@ public class ObstacleAvoider : Kinematic
     {
         myMoveType = new ObstacleAvoidance();
         myMoveType.character = this;
-        myMoveType.target = myTarget;
     }
 
     protected override void Update()
     {
-        steeringUpdate = new SteeringOutput();
-        steeringUpdate = myMoveType.getSteering();
-        steeringUpdate.linear.y = 0f;
+        SteeringOutput steering = myMoveType.getSteering();
+
+        if (steering != null)
+        {
+            steeringUpdate = steering;
+            steeringUpdate.linear.y = 0f;
+        }
+
         base.Update();
     }
 }
